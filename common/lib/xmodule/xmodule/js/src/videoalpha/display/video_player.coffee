@@ -45,6 +45,7 @@ class @VideoPlayerAlpha extends SubviewAlpha
     if @video.show_captions is true
       @caption = new VideoCaptionAlpha
         el: @el
+        video: @video
         youtubeId: @video.youtubeId('1.0')
         currentSpeed: @currentSpeed()
         captionAssetPath: @video.caption_asset_path
@@ -262,11 +263,14 @@ class @VideoPlayerAlpha extends SubviewAlpha
   toggleFullScreen: (event) =>
     event.preventDefault()
     if @el.hasClass('fullscreen')
+      type = 'not_fullscreen'
       @$('.add-fullscreen').attr('title', 'Fill browser')
       @el.removeClass('fullscreen')
     else
+      type = 'fullscreen'
       @el.addClass('fullscreen')
       @$('.add-fullscreen').attr('title', 'Exit fill browser')
+    @video.log type
     if @video.show_captions is true
       @caption.resize()
 

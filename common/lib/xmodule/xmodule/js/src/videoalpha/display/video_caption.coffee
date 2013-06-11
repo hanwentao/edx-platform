@@ -140,12 +140,15 @@ class @VideoCaptionAlpha extends SubviewAlpha
 
   hideCaptions: (hide_captions) =>
     if hide_captions
+      type = 'hide_transcript'
       @$('.hide-subtitles').attr('title', 'Turn on captions')
       @el.addClass('closed')
     else
+      type = 'show_transcript'
       @$('.hide-subtitles').attr('title', 'Turn off captions')
       @el.removeClass('closed')
       @scrollCaption()
+    @video.log type
     $.cookie('hide_captions', hide_captions, expires: 3650, path: '/')
 
   captionHeight: ->
