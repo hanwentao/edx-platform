@@ -13,10 +13,14 @@ from django.core.urlresolvers import reverse
 from mitxmako.shortcuts import render_to_response
 
 from xmodule.modulestore.django import modulestore
+from xmodule.modulestore.inheritance import own_metadata
 
 from xmodule.modulestore.exceptions import (
     ItemNotFoundError, InvalidLocationError)
 from xmodule.modulestore import Location
+
+from xmodule.contentstore.django import contentstore
+from xmodule.contentstore.content import StaticContent
 
 from contentstore.course_info_model import (
     get_course_updates, update_course_updates, delete_course_update)
@@ -31,6 +35,7 @@ from auth.authz import create_all_course_groups
 from util.json_request import expect_json
 
 from .access import has_access, get_location_and_verify_access
+from .assets import assets_to_json_dict
 from .requests import get_request_method
 from .tabs import initialize_course_tabs
 from .component import (
@@ -420,16 +425,35 @@ def textbook_index(request, org, course, name):
 
     org, course, name: Attributes of the Location for the item to edit
     """
-    upload_asset_callback_url = reverse('upload_asset', kwargs={
-        'org': org,
-        'course': course,
-        'coursename': name
-    })
-
+    course_reference = StaticContent.compute_location(org, course, name)
+    store = contentstore()
+    assets_db_objs = store.get_all_content_for_course(course_reference)
+    assets_json_objs = assets_to_json_dict(assets_db_objs)
+    assets_pdfs = [asset for asset in assets_json_objs if asset["path"].endswith(".pdf")]
     location = get_location_and_verify_access(request, org, course, name)
-    course = modulestore().get_item(location, depth=3)
-    return render_to_response('textbooks.html', {
-        'context_course': course,
-        'course': course,
-        'upload_asset_callback_url': upload_asset_callback_url,
-    })
+    course_module = modulestore().get_item(location, depth=3)
+
+    if request.is_ajax():
+        if request.method == 'GET':
+            return HttpResponse(json.dumps(course_module.pdf_textbooks), content_type="application/json")
+        elif request.method == 'POST':
+            store.update_metadata(course.location, own_metadata(request.POST))
+            return HttpResponse('', content_type="application/json", status=201)
+    else:
+        upload_asset_callback_url = reverse('upload_asset', kwargs={
+            'org': org,
+            'course': course,
+            'coursename': name,
+        })
+        asset_index_url = reverse('asset_index', kwargs={
+            'org': org,
+            'course': course,
+            'name': name,
+        })
+        return render_to_response('textbooks.html', {
+            'context_course': course_module,
+            'course': course_module,
+            'assets': assets_pdfs,
+            'upload_asset_callback_url': upload_asset_callback_url,
+            'asset_index_url': asset_index_url,
+        })
